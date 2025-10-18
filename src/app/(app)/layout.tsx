@@ -6,11 +6,12 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase/firebaseConfig';
 import { signOut } from 'firebase/auth';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 
 // Componentes do Material-UI
-import { 
-  AppBar, Toolbar, IconButton, Typography, Drawer, 
-  List, ListItem, ListItemButton, ListItemIcon, ListItemText, 
+import {
+  AppBar, Toolbar, IconButton, Typography, Drawer,
+  List, ListItem, ListItemButton, ListItemIcon, ListItemText,
   Box, CssBaseline, Divider, CircularProgress, useMediaQuery
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -23,18 +24,18 @@ import ForumIcon from '@mui/icons-material/Forum';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import PriceCheckIcon from '@mui/icons-material/PriceCheck';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import PeopleIcon from '@mui/icons-material/People'; 
+import PeopleIcon from '@mui/icons-material/People';
 
-const drawerWidth = 250; 
+const drawerWidth = 250;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { user, loading } = useAuth(); 
+  const { userProfile, loading } = useAuth(); // Usando userProfile do AuthContext
 
   const theme = useTheme();
-  const isLgUp = useMediaQuery(theme.breakpoints.up('lg')); // Use 'lg' para desktops maiores
+  const isLgUp = useMediaQuery(theme.breakpoints.up('lg'));
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -43,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.push('/login'); 
+      router.push('/login');
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
     }
@@ -51,13 +52,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Lógica de redirecionamento para não autenticados
   useEffect(() => {
-    if (!loading && !user && pathname !== '/login') { // Adicionado check para não redirecionar se já estamos no login
+    if (!loading && !userProfile && pathname !== '/login') {
+      console.log("Layout - Redirecionando para login: Não logado e carregamento completo.");
       router.push('/login');
     }
-  }, [user, loading, router, pathname]);
+  }, [userProfile, loading, router, pathname]);
+
+  // =============== START: LOGS DE DEPURAÇÃO PARA VISIBILIDADE DO MENU FINANÇAS ===============
+  useEffect(() => {
+    console.log("DEBUG - Layout useEffect - Loading:", loading);
+    console.log("DEBUG - Layout useEffect - UserProfile:", userProfile);
+    if (userProfile) {
+      console.log("DEBUG - Layout useEffect - UserProfile.role:", userProfile.role);
+      if (['dirigente', 'pastor_presidente'].includes(userProfile.role as string)) {
+        console.log("DEBUG - Layout useEffect - Role é válida para Finanças!");
+      } else {
+        console.log("DEBUG - Layout useEffect - Role NÃO é válida para Finanças. Role atual:", userProfile.role);
+      }
+    } else if (!loading) {
+      console.log("DEBUG - Layout useEffect - UserProfile é nulo/undefined após carregamento.");
+    }
+  }, [userProfile, loading]); // Dependências relevantes para o estado de autenticação
+  // =============== END: LOGS DE DEPURAÇÃO PARA VISIBILIDADE DO MENU FINANÇAS ===============
+
 
   // Exibe spinner enquanto autenticação está carregando
   if (loading) {
+    console.log("Layout - Exibindo spinner de carregamento.");
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
@@ -67,8 +88,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   // Se não está autenticado e não está na página de login, o useEffect vai redirecionar.
-  // Não renderizamos o layout completo para evitar erros.
-  if (!user) {
+  if (!userProfile) {
+    console.log("Layout - Exibindo spinner de redirecionamento para login (userProfile ausente).");
     return (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
             <CircularProgress />
@@ -77,23 +98,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Definição dos itens do menu
+  // Definição dos itens do menu padrão
   const menuItems = [
     { text: 'Início', icon: <HomeIcon />, path: '/' },
     { text: 'Meu Perfil', icon: <PersonIcon />, path: '/meu-perfil' },
-    { text: 'Calendário da Igreja', icon: <PersonIcon />, path: '/agenda' },
-    { text: 'Conectar', icon: <PeopleIcon />, path: '/conectar' }, 
-    { text: 'Agenda', icon: <CalendarMonthIcon />, path: '/agenda' }, 
+    { text: 'Conectar', icon: <PeopleIcon />, path: '/conectar' },
+    { text: 'Agenda', icon: <CalendarMonthIcon />, path: '/agenda' },
     { text: 'Pedidos de Oração', icon: <ForumIcon />, path: '/oracao' },
-    { text: 'Dízimos e Ofertas', icon: <PriceCheckIcon />, path: '/doacao' }, 
+    { text: 'Dízimos e Ofertas', icon: <PriceCheckIcon />, path: '/doacao' },
   ];
+
+  // =============== START: LÓGICA CONDICIONAL E LOGS PARA O ITEM "FINANÇAS" ===============
+  console.log("DEBUG - Lógica do menu Finanças - UserProfile na construção do menu:", userProfile);
+  if (userProfile && userProfile.role) { // Verifica se userProfile e role existem
+      console.log(`DEBUG - Lógica do menu Finanças - Verificando role: '${userProfile.role}'`);
+      if (['dirigente', 'pastor_presidente'].includes(userProfile.role)) {
+          console.log("DEBUG - Lógica do menu Finanças - --> SIM, role corresponde. Adicionando menu Finanças.");
+          menuItems.push({ text: 'Finanças', icon: <AttachMoneyIcon />, path: '/financas' });
+      } else {
+          console.log(`DEBUG - Lógica do menu Finanças - --> NÃO, role '${userProfile.role}' não corresponde aos requisitos.`);
+      }
+  } else {
+      console.log("DEBUG - Lógica do menu Finanças - UserProfile ou userProfile.role está faltando. Não é possível adicionar Finanças.");
+  }
+  // =============== END: LÓGICA CONDICIONAL E LOGS PARA O ITEM "FINANÇAS" ===============
+
 
   // Conteúdo do Drawer (Sidebar)
   const drawerContent = (
     <Box
       sx={{ width: drawerWidth }}
       role="presentation"
-      onClick={handleDrawerToggle} // Fecha o drawer ao clicar em um item (em mobile)
+      onClick={handleDrawerToggle}
       onKeyDown={handleDrawerToggle}
     >
       <Toolbar sx={{ justifyContent: 'center' }}>
@@ -104,14 +140,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Divider />
       <List>
         {menuItems.map((item) => (
-          <ListItem 
-            key={item.text} 
-            disablePadding 
-            component="li" // Necessário para o Material-UI (o erro anterior)
+          <ListItem
+            key={item.text}
+            disablePadding
+            component="li"
           >
-            <ListItemButton 
+            <ListItemButton
               onClick={() => router.push(item.path)}
-              selected={pathname === item.path} // Move selected para o botão
+              selected={pathname === item.path}
             >
               <ListItemIcon sx={{ color: 'primary.main' }}>
                 {item.icon}
@@ -123,8 +159,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </List>
       <Divider />
       <List>
-        <ListItem disablePadding component="li"> 
-          <ListItemButton onClick={handleLogout}> 
+        <ListItem disablePadding component="li">
+          <ListItemButton onClick={handleLogout}>
             <ListItemIcon>
               <ExitToAppIcon />
             </ListItemIcon>
@@ -138,23 +174,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
-      <AppBar 
+      <AppBar
         position="fixed"
-        sx={{ 
+        sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
           backgroundColor: 'primary.main',
-          width: { lg: `calc(100% - ${drawerWidth}px)` }, // Ajusta para desktops maiores
-          ml: { lg: `${drawerWidth}px` }, // Margem esquerda para desktops maiores
+          width: { lg: `calc(100% - ${drawerWidth}px)` },
+          ml: { lg: `${drawerWidth}px` },
         }}
       >
         <Toolbar>
-          {/* ✅ Ícone do menu hambúrguer para mobile */}
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { lg: 'none' } }} // Oculta o ícone em telas LG+ (desktop)
+            sx={{ mr: 2, display: { lg: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
@@ -163,17 +198,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Typography>
         </Toolbar>
       </AppBar>
-      
+
       {/* Drawer para telas menores (mobile/tablet) */}
       <Drawer
-        variant="temporary" // Temporário (aparece/desaparece)
+        variant="temporary"
         open={mobileOpen}
         onClose={handleDrawerToggle}
         ModalProps={{
-          keepMounted: true, // Melhor para mobile
+          keepMounted: true,
         }}
         sx={{
-          display: { xs: 'block', lg: 'none' }, // Mostra em XS (mobile) até MD, esconde em LG+
+          display: { xs: 'block', lg: 'none' },
           '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
         }}
       >
@@ -182,12 +217,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Drawer para telas maiores (desktop) */}
       <Drawer
-        variant="permanent" // Permanente (sempre visível)
+        variant="permanent"
         sx={{
-          display: { xs: 'none', lg: 'block' }, // Esconde em XS até MD, mostra em LG+
+          display: { xs: 'none', lg: 'block' },
           '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
         }}
-        open // Sempre aberto para variant="permanent"
+        open
       >
         {drawerContent}
       </Drawer>
@@ -195,12 +230,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Conteúdo principal da página */}
       <Box
         component="main"
-        sx={{ 
-          flexGrow: 1, 
-          p: 3, 
-          marginTop: '64px', // Espaço para a AppBar
-          width: { lg: `calc(100% - ${drawerWidth}px)` }, // Ajusta largura para telas maiores
-          ml: { lg: `${drawerWidth}px` }, // Margem esquerda para telas maiores
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          marginTop: '64px',
+          width: { lg: `calc(100% - ${drawerWidth}px)` },
+          ml: { lg: `${drawerWidth}px` },
         }}
       >
         {children}

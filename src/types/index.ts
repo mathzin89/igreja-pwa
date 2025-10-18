@@ -1,5 +1,7 @@
 // src/types/index.ts
 
+import { Timestamp } from 'firebase/firestore'; // Importe Timestamp diretamente
+
 // Mantenha suas interfaces existentes, e adicione/ajuste estas:
 
 // Interface para o perfil do usuário
@@ -11,9 +13,9 @@ export interface UserProfile {
   bio?: string;
   createdAt: string; // ISO string
   updatedAt?: string; // ISO string
-  role: 'membro' | 'admin' | 'pastor';
-  igrejaId?: string;
-  igrejaNome?: string;
+  role?: string; // ✅ Adicionado/Confirmado
+  igrejaId?: string; // ✅ Adicionado/Confirmado
+  igrejaNome?: string; // ✅ Adicionado/Confirmado (para guardar o nome da igreja)
   // Adicione outros campos conforme necessário
   ministries?: string[];
   phone?: string;
@@ -42,16 +44,23 @@ export interface Igreja {
   pastorPrincipalUid?: string; // UID do pastor principal
   fundacao?: string; // Data de fundação (ISO string)
 }
+export interface FinancasLancamento {
+  id: string; // ID do documento Firestore
+  categoria: string;
+  data: string; // Formato DD/MM/YYYY (ATENÇÃO: para ordenação, considere um Timestamp)
+  descricao?: string; // Opcional
+  membroId?: string; // Opcional, ID do membro
+  membroNome?: string; // Adicionado no frontend após busca
+  tipo: 'entrada' | 'saida';
+  valor: number;
+  registradoPor?: string; // UID de quem registrou
+  registradoEm?: Timestamp; // ✅ Usar Timestamp do Firestore diretamente
+    dataParsed?: Date | null;
 
-// Interface para um usuário na lista de "Conectar" (vamos usar UserProfile)
-// export interface AppUser {
-//   uid: string;
-//   nome: string; 
-//   foto: string | null; // Usando 'foto' aqui
-//   email: string;
-//   // Adicione qualquer outra informação que você queira exibir
-// }
+}
 
-// Você pode remover a interface AppUser se UserProfile já tem tudo que você precisa,
-// e apenas usar UserProfile em ConectarPage e UserList.
-// No AuthContext, usei UserProfile diretamente, então vamos manter a consistência.
+export interface Membro {
+    id: string;
+    nome: string;
+    // Adicione outros campos que você tenha na coleção 'membros'
+}
